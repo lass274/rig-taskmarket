@@ -1,3 +1,5 @@
+//! Lists active TaskMarket tasks worth at least 10 USDC.
+
 use rig_taskmarket::{BrowseTasksArgs, TaskmarketClient};
 
 #[tokio::main]
