@@ -1,3 +1,5 @@
+//! Integration tests for the public TaskMarket client surface.
+
 use rig_taskmarket::{BrowseTasksArgs, TaskmarketClient};
 use serde_json::json;
 use wiremock::{
