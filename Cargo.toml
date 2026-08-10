@@ -1,0 +1,28 @@
+[package]
+name = "rig-taskmarket"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+description = "Read-only TaskMarket tools for Rig agents"
+repository = "https://github.com/lass274/rig-taskmarket"
+keywords = ["rig", "taskmarket", "agents", "web3", "tools"]
+categories = ["api-bindings", "web-programming::http-client"]
+
+[dependencies]
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "query", "rustls"] }
+rig-agent = { version = "0.41.0", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+
+[dev-dependencies]
+tokio = { version = "1.48", features = ["macros", "rt-multi-thread"] }
+wiremock = "0.6.5"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = "warn"
