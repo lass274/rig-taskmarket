@@ -72,10 +72,14 @@ before this implementation found no existing TaskMarket provider or tool in Rig.
 ## Scope and status
 
 - Target: [0xPlaygrounds/rig](https://github.com/0xPlaygrounds/rig)
+- Official website: [rig.rs](https://rig.rs/)
+- Established-project evidence: Rig has more than 8,000 GitHub stars and a
+  documented ecosystem of production users and companion integrations.
 - Integration type: independently maintained Rig side crate, following Rig's
   documented side-crate contribution path
-- Current status: implementation complete locally; upstream inclusion proposal
-  follows after the public commit is available
+- Current status: public implementation with formatting, Clippy, and tests
+  passing in GitHub Actions; upstream inclusion remains unrequested
+- CI evidence: [latest workflow runs](https://github.com/lass274/rig-taskmarket/actions)
 - TaskMarket API: `https://api.taskmarket.dev/api`
 - TaskMarket docs: [docs.taskmarket.dev](https://docs.taskmarket.dev/)
 
