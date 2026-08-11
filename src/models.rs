@@ -18,6 +18,22 @@ pub struct BrowseTasksArgs {
     pub max_reward_usdc: Option<String>,
 }
 
+/// Arguments accepted by [`crate::ScreenTasksTool`].
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct ScreenTasksArgs {
+    /// Discovery filters sent to TaskMarket before local policy screening.
+    #[serde(default)]
+    pub browse: BrowseTasksArgs,
+    /// Exclude tasks whose public submission count exceeds this value.
+    pub max_submission_count: Option<u64>,
+    /// Exclude tasks that require a worker stake. Defaults to `true`.
+    pub exclude_stake: Option<bool>,
+    /// Exclude tasks whose submission window is closed. Defaults to `true`.
+    pub require_open_window: Option<bool>,
+    /// Case-insensitive terms that make a task ineligible when found in its description or tags.
+    pub blocked_terms: Option<Vec<String>>,
+}
+
 /// Arguments accepted by [`crate::GetTaskTool`].
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GetTaskArgs {
@@ -101,6 +117,30 @@ pub struct TaskPage {
     /// Cursor for the next page.
     pub next_cursor: Option<String>,
     /// Whether another page is available.
+    pub has_more: bool,
+}
+
+/// A task annotated with deterministic local policy results.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScreenedTask {
+    /// Original task returned by TaskMarket.
+    pub task: Task,
+    /// Whether the task passed every requested policy check.
+    pub eligible: bool,
+    /// Human-readable reasons explaining why the task was excluded.
+    pub reasons: Vec<String>,
+}
+
+/// A paginated TaskMarket response with local policy annotations.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScreenedTaskPage {
+    /// Screened tasks on this page, including excluded entries for auditability.
+    pub tasks: Vec<ScreenedTask>,
+    /// Cursor for the next upstream page.
+    pub next_cursor: Option<String>,
+    /// Whether another upstream page is available.
     pub has_more: bool,
 }
 

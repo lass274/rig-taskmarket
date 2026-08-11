@@ -2,7 +2,10 @@ use reqwest::{Client, StatusCode};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
 
-use crate::{BrowseTasksArgs, Submission, SubmissionSummary, Task, TaskPage, WalletBalance};
+use crate::{
+    BrowseTasksArgs, ScreenTasksArgs, ScreenedTask, ScreenedTaskPage, Submission,
+    SubmissionSummary, Task, TaskPage, WalletBalance,
+};
 
 /// TaskMarket's production API origin.
 pub const DEFAULT_BASE_URL: &str = "https://api.taskmarket.dev";
@@ -119,6 +122,59 @@ impl TaskmarketClient {
         self.get("/api/tasks", &query).await
     }
 
+    /// Lists public tasks and annotates them with deterministic, read-only policy checks.
+    pub async fn screen_tasks(
+        &self,
+        args: &ScreenTasksArgs,
+    ) -> Result<ScreenedTaskPage, TaskmarketError> {
+        let blocked_terms = normalize_blocked_terms(args.blocked_terms.as_deref())?;
+        let page = self.browse_tasks(&args.browse).await?;
+        let exclude_stake = args.exclude_stake.unwrap_or(true);
+        let require_open_window = args.require_open_window.unwrap_or(true);
+
+        let tasks = page
+            .tasks
+            .into_iter()
+            .map(|task| {
+                let mut reasons = Vec::new();
+                if exclude_stake && task.stake_required {
+                    reasons.push("worker stake required".to_owned());
+                }
+                if require_open_window && !task.submission_window_open {
+                    reasons.push("submission window is closed".to_owned());
+                }
+                if let Some(limit) = args.max_submission_count {
+                    if task.submission_count > limit {
+                        reasons.push(format!(
+                            "submission count {} exceeds limit {limit}",
+                            task.submission_count
+                        ));
+                    }
+                }
+
+                let searchable =
+                    format!("{} {}", task.description, task.tags.join(" ")).to_lowercase();
+                for term in &blocked_terms {
+                    if searchable.contains(term) {
+                        reasons.push(format!("blocked term matched: {term}"));
+                    }
+                }
+
+                ScreenedTask {
+                    eligible: reasons.is_empty(),
+                    reasons,
+                    task,
+                }
+            })
+            .collect();
+
+        Ok(ScreenedTaskPage {
+            tasks,
+            next_cursor: page.next_cursor,
+            has_more: page.has_more,
+        })
+    }
+
     /// Fetches one public task by identifier.
     pub async fn get_task(&self, task_id: &str) -> Result<Task, TaskmarketError> {
         validate_path_id(task_id, "task_id")?;
@@ -203,6 +259,28 @@ fn validate_address(address: &str) -> Result<(), TaskmarketError> {
         ));
     }
     Ok(())
+}
+
+fn normalize_blocked_terms(terms: Option<&[String]>) -> Result<Vec<String>, TaskmarketError> {
+    let terms = terms.unwrap_or_default();
+    if terms.len() > 20 {
+        return Err(TaskmarketError::InvalidArgument(
+            "blocked_terms accepts at most 20 entries".to_owned(),
+        ));
+    }
+
+    terms
+        .iter()
+        .map(|term| {
+            let term = term.trim();
+            if term.is_empty() || term.chars().count() > 64 {
+                return Err(TaskmarketError::InvalidArgument(
+                    "blocked terms must contain 1 to 64 characters".to_owned(),
+                ));
+            }
+            Ok(term.to_lowercase())
+        })
+        .collect()
 }
 
 fn usdc_to_base_units(value: &str) -> Result<String, TaskmarketError> {
