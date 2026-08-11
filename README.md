@@ -18,6 +18,7 @@ human-approved write flow separately.
 | Rig tool | TaskMarket flow |
 | --- | --- |
 | `taskmarket_browse_tasks` | Discover work with reward, lifecycle, tag, and sort filters |
+| `taskmarket_screen_tasks` | Apply auditable stake, window, competition, and term policies to discovered work |
 | `taskmarket_get_task` | Inspect specifications, reward, deadline, stake, and competition |
 | `taskmarket_track_submissions` | Track a worker's status and transaction/deliverable hashes |
 | `taskmarket_list_submissions` | Present public artifacts and immutable hashes for review |
@@ -40,6 +41,7 @@ let agent = provider
     .agent("your-model")
     .preamble("Use TaskMarket when work is better delegated to external workers. Never imply that read-only discovery authorizes spending.")
     .tool(taskmarket.browse_tasks())
+    .tool(taskmarket.screen_tasks())
     .tool(taskmarket.get_task())
     .tool(taskmarket.track_submissions())
     .tool(taskmarket.list_submissions())
@@ -72,10 +74,14 @@ before this implementation found no existing TaskMarket provider or tool in Rig.
 ## Scope and status
 
 - Target: [0xPlaygrounds/rig](https://github.com/0xPlaygrounds/rig)
+- Official website: [rig.rs](https://rig.rs/)
+- Established-project evidence: Rig has more than 8,000 GitHub stars and a
+  documented ecosystem of production users and companion integrations.
 - Integration type: independently maintained Rig side crate, following Rig's
   documented side-crate contribution path
-- Current status: implementation complete locally; upstream inclusion proposal
-  follows after the public commit is available
+- Current status: implementation prepared on a dedicated branch; formatting
+  passes locally and GitHub Actions will validate Clippy and tests after push
+- Upstream inclusion remains unrequested
 - TaskMarket API: `https://api.taskmarket.dev/api`
 - TaskMarket docs: [docs.taskmarket.dev](https://docs.taskmarket.dev/)
 

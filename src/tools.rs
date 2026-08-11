@@ -2,9 +2,9 @@ use rig_agent::tool::{Tool, ToolContext};
 use serde_json::{Value, json};
 
 use crate::{
-    BrowseTasksArgs, GetTaskArgs, ListSubmissionsArgs, Submission, SubmissionSummary, Task,
-    TaskPage, TaskmarketClient, TaskmarketError, TrackSubmissionsArgs, WalletBalance,
-    WalletBalanceArgs,
+    BrowseTasksArgs, GetTaskArgs, ListSubmissionsArgs, ScreenTasksArgs, ScreenedTaskPage,
+    Submission, SubmissionSummary, Task, TaskPage, TaskmarketClient, TaskmarketError,
+    TrackSubmissionsArgs, WalletBalance, WalletBalanceArgs,
 };
 
 /// Factory for a consistent set of read-only TaskMarket tools.
@@ -30,6 +30,12 @@ impl TaskmarketTools {
     #[must_use]
     pub fn browse_tasks(&self) -> BrowseTasksTool {
         BrowseTasksTool::new(self.client.clone())
+    }
+
+    /// Creates the task-discovery and policy-screening tool.
+    #[must_use]
+    pub fn screen_tasks(&self) -> ScreenTasksTool {
+        ScreenTasksTool::new(self.client.clone())
     }
 
     /// Creates the task-detail tool.
@@ -82,15 +88,55 @@ impl Tool for BrowseTasksTool {
     }
 
     fn parameters(&self) -> Value {
+        browse_args_schema()
+    }
+
+    async fn call(
+        &self,
+        _context: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
+        self.client.browse_tasks(&args).await
+    }
+}
+
+/// Rig tool that discovers tasks and applies caller-defined eligibility checks.
+#[derive(Clone, Debug)]
+pub struct ScreenTasksTool {
+    client: TaskmarketClient,
+}
+
+impl ScreenTasksTool {
+    /// Creates the tool from a client.
+    #[must_use]
+    pub fn new(client: TaskmarketClient) -> Self {
+        Self { client }
+    }
+}
+
+impl Tool for ScreenTasksTool {
+    const NAME: &'static str = "taskmarket_screen_tasks";
+    type Args = ScreenTasksArgs;
+    type Output = ScreenedTaskPage;
+    type Error = TaskmarketError;
+
+    fn description(&self) -> String {
+        "Discover TaskMarket work and annotate every result against explicit local policy: stake, open submission window, competition, and blocked terms. Read-only and auditable; excluded tasks remain visible with reasons.".to_owned()
+    }
+
+    fn parameters(&self) -> Value {
         json!({
             "type": "object",
             "properties": {
-                "limit": {"type": "integer", "minimum": 1, "maximum": 100},
-                "phase": {"type": "string", "enum": ["active", "in_review", "awaiting_settlement", "resolved"]},
-                "sort": {"type": "string", "enum": ["newest", "reward_desc", "reward_asc", "deadline_asc"]},
-                "tags": {"type": "array", "items": {"type": "string"}},
-                "min_reward_usdc": {"type": "string", "pattern": "^[0-9]+(?:\\.[0-9]{1,6})?$"},
-                "max_reward_usdc": {"type": "string", "pattern": "^[0-9]+(?:\\.[0-9]{1,6})?$"}
+                "browse": browse_args_schema(),
+                "max_submission_count": {"type": "integer", "minimum": 0},
+                "exclude_stake": {"type": "boolean", "default": true},
+                "require_open_window": {"type": "boolean", "default": true},
+                "blocked_terms": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "items": {"type": "string", "minLength": 1, "maxLength": 64}
+                }
             }
         })
     }
@@ -100,7 +146,7 @@ impl Tool for BrowseTasksTool {
         _context: &mut ToolContext,
         args: Self::Args,
     ) -> Result<Self::Output, Self::Error> {
-        self.client.browse_tasks(&args).await
+        self.client.screen_tasks(&args).await
     }
 }
 
@@ -260,6 +306,20 @@ fn task_id_schema() -> Value {
     })
 }
 
+fn browse_args_schema() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+            "phase": {"type": "string", "enum": ["active", "in_review", "awaiting_settlement", "resolved"]},
+            "sort": {"type": "string", "enum": ["newest", "reward_desc", "reward_asc", "deadline_asc"]},
+            "tags": {"type": "array", "items": {"type": "string"}},
+            "min_reward_usdc": {"type": "string", "pattern": "^[0-9]+(?:\\.[0-9]{1,6})?$"},
+            "max_reward_usdc": {"type": "string", "pattern": "^[0-9]+(?:\\.[0-9]{1,6})?$"}
+        }
+    })
+}
+
 fn address_schema(name: &str) -> Value {
     json!({
         "type": "object",
@@ -284,6 +344,7 @@ mod tests {
     fn tool_names_are_stable_and_distinct() {
         let names = [
             BrowseTasksTool::NAME,
+            ScreenTasksTool::NAME,
             GetTaskTool::NAME,
             TrackSubmissionsTool::NAME,
             ListSubmissionsTool::NAME,

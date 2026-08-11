@@ -11,10 +11,11 @@ mod tools;
 
 pub use client::{DEFAULT_BASE_URL, TaskmarketClient, TaskmarketError};
 pub use models::{
-    Artifact, BrowseTasksArgs, GetTaskArgs, ListSubmissionsArgs, Submission, SubmissionSummary,
-    Task, TaskPage, TrackSubmissionsArgs, WalletBalance, WalletBalanceArgs,
+    Artifact, BrowseTasksArgs, GetTaskArgs, ListSubmissionsArgs, ScreenTasksArgs, ScreenedTask,
+    ScreenedTaskPage, Submission, SubmissionSummary, Task, TaskPage, TrackSubmissionsArgs,
+    WalletBalance, WalletBalanceArgs,
 };
 pub use tools::{
-    BrowseTasksTool, GetTaskTool, ListSubmissionsTool, TaskmarketTools, TrackSubmissionsTool,
-    WalletBalanceTool,
+    BrowseTasksTool, GetTaskTool, ListSubmissionsTool, ScreenTasksTool, TaskmarketTools,
+    TrackSubmissionsTool, WalletBalanceTool,
 };

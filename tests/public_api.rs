@@ -1,4 +1,6 @@
-use rig_taskmarket::{BrowseTasksArgs, TaskmarketClient};
+//! Integration tests for the public TaskMarket client surface.
+
+use rig_taskmarket::{BrowseTasksArgs, ScreenTasksArgs, TaskmarketClient};
 use serde_json::json;
 use wiremock::{
     Mock, MockServer, ResponseTemplate,
@@ -69,4 +71,73 @@ async fn non_success_status_is_bounded_and_typed() {
         .await
         .expect_err("404 is an error");
     assert!(error.to_string().contains("HTTP 404"));
+}
+
+#[tokio::test]
+async fn screen_tasks_keeps_exclusion_reasons_auditable() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/tasks"))
+        .and(query_param("limit", "20"))
+        .and(query_param("phase", "active"))
+        .and(query_param("sort", "reward_desc"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "tasks": [
+                task_json("0xsafe", "Write a Rust adapter", false, true, 2),
+                task_json("0xstake", "Stake to enter", true, true, 1),
+                task_json("0xhuman", "Complete this HUMAN_ONLY interview", false, true, 1),
+                task_json("0xcrowded", "Write another adapter", false, true, 12)
+            ],
+            "nextCursor": "next-page",
+            "hasMore": true
+        })))
+        .mount(&server)
+        .await;
+
+    let client = TaskmarketClient::with_base_url(server.uri()).expect("mock URL is valid");
+    let page = client
+        .screen_tasks(&ScreenTasksArgs {
+            max_submission_count: Some(5),
+            blocked_terms: Some(vec!["human_only".to_owned()]),
+            ..ScreenTasksArgs::default()
+        })
+        .await
+        .expect("screening succeeds");
+
+    assert!(page.tasks[0].eligible);
+    assert_eq!(page.tasks[1].reasons, ["worker stake required"]);
+    assert_eq!(page.tasks[2].reasons, ["blocked term matched: human_only"]);
+    assert_eq!(
+        page.tasks[3].reasons,
+        ["submission count 12 exceeds limit 5"]
+    );
+    assert_eq!(page.next_cursor.as_deref(), Some("next-page"));
+    assert!(page.has_more);
+}
+
+fn task_json(
+    id: &str,
+    description: &str,
+    stake: bool,
+    window: bool,
+    submissions: u64,
+) -> serde_json::Value {
+    json!({
+        "id": id,
+        "requester": "0x0000000000000000000000000000000000000001",
+        "description": description,
+        "reward": "12000000",
+        "netReward": "11100000",
+        "createdAt": "2026-08-09T00:00:00Z",
+        "expiryTime": "2026-08-20T00:00:00Z",
+        "status": "open",
+        "tags": ["rust"],
+        "mode": "bounty",
+        "phase": "active",
+        "stakeRequired": stake,
+        "submissionWindowOpen": window,
+        "submissionCount": submissions,
+        "awardCount": 0,
+        "primaryAward": null
+    })
 }
